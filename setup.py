@@ -10,7 +10,8 @@ setup(
     classifiers=["Programming Language :: Python :: 3 :: Only"],
     py_modules=["target_kinesis"],
     install_requires=[
-        "singer-python>=5.0.12",
+        "singer-python==5.0.12",
+        "boto3==1.9.36"
     ],
     entry_points="""
     [console_scripts]

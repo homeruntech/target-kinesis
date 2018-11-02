@@ -1,5 +1,7 @@
 {
-  "username": "my_username",
-  "password": "my_password",
-  "start_date": "2017-01-01T00:00:00Z"
+  "stream_name": "YOUR_KINESIS_STREAM_NAME",
+  "aws_access_key_id": "YOUR_AWS_ACCESS_KEY_ID",
+  "aws_secret_access_key": "YOUR_AWS_SECRET_ACCESS_KEY",
+  "region": "YOUR_AWS_REGION",
+  "is_firehose": true
 }
