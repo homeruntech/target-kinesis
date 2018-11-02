@@ -4,7 +4,7 @@ A [Singer](https://singer.io) target that propagate data to [Amazon Kinesis](htt
 
 ## How to use it
 
-`target-kinesis` works together with any other [Singer Tap] to move data from sources like [Braintree], [Freshdesk] and [Hubspot] to Kinesis or Kinesis Firehose stream.
+`target-kinesis` works together with any other [Singer Tap] to move data from sources to Kinesis or Kinesis Firehose stream.
 
 ### Install and Run
 
@@ -44,10 +44,8 @@ Also available inside [config.sample.json](config.sample.json)
 To run `target-kinesis` with the configuration file, use this command:
 
 ```bash
-› tap-foobar | target-csv --config my-config.json
+› tap-foobar | target-kinesis --config my-config.json
 ```
-
----
 
 [Singer Tap]: https://singer.io
 [Mac]: http://docs.python-guide.org/en/latest/starting/install3/osx/
