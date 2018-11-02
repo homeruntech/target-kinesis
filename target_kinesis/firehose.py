@@ -18,6 +18,6 @@ def deliver(config, record):
   response = client.put_record(
     DeliveryStreamName=stream_name,
     Record={
-      'Data': json.dumps(record)
+      'Data': json.dumps(record) + "\n"
     }
   )
