@@ -13,6 +13,12 @@ setup(
         "singer-python==5.0.12",
         "boto3==1.9.36"
     ],
+      extras_require={
+        'dev': [
+            'nose==1.3.7',
+            'pylint==2.1.1',
+        ]
+    },
     entry_points="""
     [console_scripts]
     target-kinesis=target_kinesis:main
