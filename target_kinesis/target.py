@@ -13,8 +13,8 @@ import pkg_resources
 from jsonschema.validators import Draft4Validator
 import singer
 
-import kinesis
-import firehose
+from .kinesis import deliver as deliver_to_kinesis
+from .firehose import deliver as deliver_to_firehose
 
 logger = singer.get_logger()
 
@@ -96,6 +96,6 @@ def persist_lines(config, lines):
 def deliver_record(config, record):
     is_firehose = config.get("is_firehose", False)
     if is_firehose:
-        firehose.deliver(config, record)
+        deliver_to_firehose(config, record)
     else:
-        kinesis.deliver(config, record)
+        deliver_to_kinesis(config, record)
