@@ -63,10 +63,10 @@ def persist_lines(config, lines):
                 raise Exception("A record for stream {} was encountered before a corresponding schema".format(o['stream']))
 
             # Get schema for this record's stream
-            schema = schemas[o['stream']]
+            # schema = schemas[o['stream']]
 
             # Validate record
-            validators[o['stream']].validate(o['record'])
+            # validators[o['stream']].validate(o['record'])
 
             # If the record needs to be flattened, uncomment this line
             # flattened_record = flatten(o['record'])
