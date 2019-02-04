@@ -24,5 +24,5 @@ def deliver(config, record):
     }
   )
 
-  logger.debug(response)
+  logger.info(response)
 
