@@ -10,13 +10,13 @@ setup(
     classifiers=["Programming Language :: Python :: 3 :: Only"],
     py_modules=["target_kinesis"],
     install_requires=[
-        "singer-python==5.0.12",
+        "singer-python==5.4.1",
         "boto3==1.9.36"
     ],
-      extras_require={
+    extras_require={
         'dev': [
-            'nose==1.3.7',
             'pylint==2.1.1',
+            'pytest==4.2.0'
         ]
     },
     entry_points="""

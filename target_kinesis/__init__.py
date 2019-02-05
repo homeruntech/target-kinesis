@@ -4,7 +4,7 @@ import argparse
 import json
 import io
 
-from target import *
+from .target import *
 
 def main():
     parser = argparse.ArgumentParser()

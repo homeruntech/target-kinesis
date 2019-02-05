@@ -1,0 +1,9 @@
+skip:
+  - milestone
+
+labels:
+  blockers:
+    - "status/ON-HOLD"
+    - "status/WIP"
+  requirements:
+    - "status/OK-TO-MERGE"
