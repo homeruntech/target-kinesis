@@ -62,10 +62,10 @@ def persist_lines(config, lines):
             if o['stream'] not in schemas:
                 raise Exception("A record for stream {} was encountered before a corresponding schema".format(o['stream']))
 
-            # Get schema for this record's stream
+            # FIXME: the schema is fake, uncomment when available
             # schema = schemas[o['stream']]
 
-            # Validate record
+            # FIXME: record validation fails because the schema is fake
             # validators[o['stream']].validate(o['record'])
 
             # If the record needs to be flattened, uncomment this line
