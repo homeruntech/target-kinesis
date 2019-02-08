@@ -16,7 +16,8 @@ setup(
     extras_require={
         'dev': [
             'pylint==2.1.1',
-            'pytest==4.2.0'
+            'pytest==4.2.0',
+            'pytest-cov==2.6.1'
         ]
     },
     entry_points="""
