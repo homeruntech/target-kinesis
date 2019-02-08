@@ -1,7 +1,7 @@
 import json
 from target_kinesis.target import *
 from mock import mock_open
-
+from io import StringIO
 
 # emit_state
 
@@ -97,8 +97,10 @@ def test_handle_state():
 
 def test_handle_schema_returns_values(mocker):
     mocker.patch('jsonschema.validators.Draft4Validator')
-    sample_schema = {"stream": "stream-name", "schema": {}, "key_properties": ["id"]}
-    schemas, validators, key_properties = handle_schema(sample_schema, {}, {}, {}, "")
+    sample_schema = {"stream": "stream-name",
+                     "schema": {}, "key_properties": ["id"]}
+    schemas, validators, key_properties = handle_schema(
+        sample_schema, {}, {}, {}, "")
     assert "stream-name" in schemas
     assert "stream-name" in key_properties
     assert "stream-name" in validators
@@ -240,3 +242,58 @@ def test_persist_lines_with_multiple_records(mocker):
     mocked_record.assert_called_once()
     mocked_state.assert_called_once()
     mocked_schema.assert_called_once()
+
+
+# main
+
+def test_main(mocker, monkeypatch):
+    mocker.patch('argparse.ArgumentParser.parse_args',
+                 return_value=argparse.Namespace(config=""))
+    mocker.patch('io.TextIOWrapper',
+                 return_value='{"type": "RECORD"}\n{"type": "RECORD"}\n')
+    mocker.patch('target_kinesis.target.load_config')
+    mocker.patch('target_kinesis.target.persist_lines')
+    mocker.patch('target_kinesis.target.emit_state')
+    main()
+
+
+def test_main_with_firehose(mocker):
+    # Mock standard input
+    input = '{"type": "SCHEMA", "stream": "example", "schema": {}, "key_properties": ["id"]}\n{"type": "RECORD", "stream": "example", "record": {"id": "1"}}'
+    mocker.patch('io.TextIOWrapper',
+                 return_value=StringIO(input))
+
+    # Mock configuration file
+    mocker.patch('argparse.ArgumentParser.parse_args',
+                 return_value=argparse.Namespace(config="sample.config.json"))
+    mocker.patch(
+        'builtins.open', mock_open(read_data='{"region_name": "us-east-1", "aws_access_key_id": "FAKE_AWS_ACCESS_KEY_ID", "aws_secret_access_key": "FAKE_AWS_SECRET_ACCESS_KEY", "is_firehose": true }'))
+
+    # Mock AWS methods
+    mocked_setup = mocker.patch('target_kinesis.target.firehose_setup_client')
+    mocked_deliver = mocker.patch('target_kinesis.target.firehose_deliver')
+
+    main()
+    mocked_setup.assert_called_once()
+    mocked_deliver.assert_called_once()
+
+
+def test_main_with_kinesis(mocker):
+    # Mock standard input
+    input = '{"type": "SCHEMA", "stream": "example", "schema": {}, "key_properties": ["id"]}\n{"type": "RECORD", "stream": "example", "record": {"id": "1"}}'
+    mocker.patch('io.TextIOWrapper',
+                 return_value=StringIO(input))
+
+    # Mock configuration file
+    mocker.patch('argparse.ArgumentParser.parse_args',
+                 return_value=argparse.Namespace(config="sample.config.json"))
+    mocker.patch(
+        'builtins.open', mock_open(read_data='{"region_name": "us-east-1", "aws_access_key_id": "FAKE_AWS_ACCESS_KEY_ID", "aws_secret_access_key": "FAKE_AWS_SECRET_ACCESS_KEY", "is_firehose": false }'))
+
+    # Mock AWS methods
+    mocked_setup = mocker.patch('target_kinesis.target.kinesis_setup_client')
+    mocked_deliver = mocker.patch('target_kinesis.target.kinesis_deliver')
+    
+    main()
+    mocked_setup.assert_called_once()
+    mocked_deliver.assert_called_once()
