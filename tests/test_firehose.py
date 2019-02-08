@@ -1,5 +1,4 @@
-from target_kinesis.firehose import deliver
-from target_kinesis.firehose import EmptyContentException
+from target_kinesis.firehose import *
 
 import boto3
 from moto import mock_kinesis
@@ -36,7 +35,7 @@ def test_deliver_single_record():
 
     data = {"example": "content"}
 
-    response = deliver(client, FAKE_STREAM_NAME, data)
+    response = firehose_deliver(client, FAKE_STREAM_NAME, data)
     assert response['ResponseMetadata']['HTTPStatusCode'] is 200
 
 @mock_kinesis
@@ -49,7 +48,7 @@ def test_deliver_multiple_records():
         {"example": "content2"}
     ]
 
-    response = deliver(client, FAKE_STREAM_NAME, data)
+    response = firehose_deliver(client, FAKE_STREAM_NAME, data)
     assert response['ResponseMetadata']['HTTPStatusCode'] is 200
 
 @mock_kinesis
@@ -60,7 +59,32 @@ def test_deliver_raise_on_empty_dataset():
     data = []
 
     try:
-        deliver(client, FAKE_STREAM_NAME, data)
+        firehose_deliver(client, FAKE_STREAM_NAME, data)
         assert False
-    except EmptyContentException:
+    except Exception:
         assert True
+
+
+@mock_kinesis
+def test_deliver_raise_on_nonexistent_stream():
+    client = setup_connection()
+    create_stream(client, FAKE_STREAM_NAME)
+
+    data = {"example": "content"}
+
+    try:
+        firehose_deliver(client, 'another-name', data)
+        assert False
+    except Exception:
+        assert True
+
+
+@mock_kinesis
+def test_setup_client_firehose():
+    config = {
+        "region": 'us-east-1',
+        "aws_access_key_id": 'FAKE_AWS_ACCESS_KEY_ID',
+        "aws_secret_access_key": 'FAKE_AWS_SECRET_ACCESS_KEY'
+    }
+    client = firehose_setup_client(config)
+    assert client.__class__.__name__ == "Firehose"

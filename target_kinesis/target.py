@@ -13,8 +13,8 @@ import pkg_resources
 from jsonschema.validators import Draft4Validator
 import singer
 
-from .kinesis import deliver as deliver_to_kinesis
-from .firehose import deliver as deliver_to_firehose
+from .kinesis import *
+from .firehose import *
 
 logger = singer.get_logger()
 
@@ -43,7 +43,7 @@ def get_line_type(decode_line, line):
     return decode_line['type']
 
 
-def handle_record(o, schemas, line, config, schemas, validators):
+def handle_record(o, schemas, line, config, validators):
     if 'stream' not in o:
         raise Exception(
             "Line is missing required key 'stream': {}".format(line))
@@ -52,7 +52,6 @@ def handle_record(o, schemas, line, config, schemas, validators):
             "A record for stream {} was encountered before a corresponding schema".format(o['stream']))
     validate_record(o['stream'], o['record'], schemas, validators)
     deliver_record(config, o['record'])
-    return None
 
 
 def handle_state(o):
@@ -60,7 +59,7 @@ def handle_state(o):
     return o['value']
 
 
-def handle_schema(o, stream, schemas, validators, key_properties):
+def handle_schema(o, schemas, validators, key_properties, line):
     if 'stream' not in o:
         raise Exception(
             "Line is missing required key 'stream': {}".format(line))
@@ -76,21 +75,25 @@ def handle_schema(o, stream, schemas, validators, key_properties):
 
 
 def persist_lines(config, lines):
+
     state = None
     schemas = {}
     key_properties = {}
-    headers = {}
     validators = {}
-    now = datetime.now().strftime('%Y%m%dT%H%M%S')
+
     for line in lines:
+
         o = decode_line(line)
         t = get_line_type(o, line)
+
         if t == 'RECORD':
-            state = handle_record(o, schemas, line, schemas, validators)
+            handle_record(o, schemas, line, config, validators)
+            state = None
         elif t == 'STATE':
             state = handle_state(o)
         elif t == 'SCHEMA':
-            handle_schema(o, stream, schemas, validators, key_properties)
+            handle_schema(o, schemas, validators, key_properties, line)
+
     return state
 
 
@@ -103,13 +106,17 @@ def validate_record(stream, record, schemas, validator):
     # validators[stream].validate(record)
 
 
-def deliver_record(config, record):
+def deliver_record(config, records):
     is_firehose = config.get("is_firehose", False)
     if is_firehose:
-        deliver_to_firehose(config, record)
+        client = firehose_setup_client(config)
+        stream_name = config.get("stream_name", "missing-stream-name")
+        firehose_deliver(client, stream_name, records)
     else:
-        pass
-        # deliver_to_kinesis(config, record)
+        client = kinesis_setup_client(config)
+        stream_name = config.get("stream_name", "missing-stream-name")
+        partition_key = config.get("partition_key", "id")
+        kinesis_deliver(client, stream_name, partition_key, records)
 
 
 def load_config(config_filename):

@@ -17,7 +17,8 @@ setup(
         'dev': [
             'pylint==2.1.1',
             'pytest==4.2.0',
-            'pytest-cov==2.6.1'
+            'pytest-cov==2.6.1',
+            'pytest-mock==1.10.1'
         ]
     },
     entry_points="""
