@@ -82,7 +82,7 @@ def test_deliver_raise_on_nonexistent_stream():
 @mock_kinesis
 def test_setup_client_firehose():
     config = {
-        "region": 'us-east-1',
+        "region_name": 'us-east-1',
         "aws_access_key_id": 'FAKE_AWS_ACCESS_KEY_ID',
         "aws_secret_access_key": 'FAKE_AWS_SECRET_ACCESS_KEY'
     }
