@@ -14,7 +14,7 @@ pipeline:
     image: python:3.7.1-alpine
     commands:
       - pip3 install --upgrade pip setuptools wheel
-      - pip3 install pytest==4.2.0 pytest-cov==2.6.1 pytest-mock==1.10.1
+      - pip3 install pytest==4.2.0 pytest-cov==2.6.1 pytest-mock==1.10.1 moto==1.3.7
       - pip3 install -e .
       - pytest -p no:warnings --cov=target_kinesis tests/
     when:

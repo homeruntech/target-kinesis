@@ -92,6 +92,37 @@ def test_handle_state():
     assert state == sample_state["value"]
 
 
+# handle_schema
+
+
+def test_handle_schema_returns_values(mocker):
+    mocker.patch('jsonschema.validators.Draft4Validator')
+    sample_schema = {"stream": "stream-name", "schema": {}, "key_properties": ["id"]}
+    schemas, validators, key_properties = handle_schema(sample_schema, {}, {}, {}, "")
+    assert "stream-name" in schemas
+    assert "stream-name" in key_properties
+    assert "stream-name" in validators
+
+
+def test_handle_schema_fail_missing_stream():
+    sample_schema = {"value": "1", "limit": "50"}
+    try:
+        handle_schema(sample_schema, {}, {}, {}, "")
+        assert False
+    except Exception:
+        assert True
+
+
+def test_handle_schema_fail_missing_key_properties(mocker):
+    mocker.patch('jsonschema.validators.Draft4Validator')
+    sample_schema = {"stream": "stream-name", "schema": {}}
+    try:
+        handle_schema(sample_schema, {}, {}, {}, "")
+        assert False
+    except Exception:
+        assert True
+
+
 # deliver_record
 
 
@@ -138,6 +169,14 @@ def test_load_config_from_file(mocker):
     mocked_open.assert_called_with(config_path)
 
 
+# validate_record
+
+
+def test_validate_record_empty_filename():
+    validate_record("", {}, {}, {})
+    assert True
+
+
 # persist_lines
 
 
@@ -146,11 +185,20 @@ def test_persist_lines_empty_recordset():
     assert state is None
 
 
+def test_persist_lines_fail_unknown_type():
+    records = ['{"type": "ERROR"}']
+    try:
+        persist_lines({}, records)
+        assert False
+    except Exception:
+        assert True
+
+
 def test_persist_lines_with_record(mocker):
     records = ['{"type": "RECORD"}']
     mocked_record = mocker.patch('target_kinesis.target.handle_record')
-    mocked_state=mocker.patch('target_kinesis.target.handle_state')
-    mocked_schema=mocker.patch('target_kinesis.target.handle_schema')
+    mocked_state = mocker.patch('target_kinesis.target.handle_state')
+    mocked_schema = mocker.patch('target_kinesis.target.handle_schema')
     persist_lines({}, records)
     mocked_record.assert_called_once()
     mocked_state.assert_not_called()
@@ -160,8 +208,8 @@ def test_persist_lines_with_record(mocker):
 def test_persist_lines_with_state(mocker):
     records = ['{"type": "STATE"}']
     mocked_record = mocker.patch('target_kinesis.target.handle_record')
-    mocked_state=mocker.patch('target_kinesis.target.handle_state')
-    mocked_schema=mocker.patch('target_kinesis.target.handle_schema')
+    mocked_state = mocker.patch('target_kinesis.target.handle_state')
+    mocked_schema = mocker.patch('target_kinesis.target.handle_schema')
     persist_lines({}, records)
     mocked_record.assert_not_called()
     mocked_state.assert_called_once()
@@ -171,8 +219,8 @@ def test_persist_lines_with_state(mocker):
 def test_persist_lines_with_schema(mocker):
     records = ['{"type": "SCHEMA"}']
     mocked_record = mocker.patch('target_kinesis.target.handle_record')
-    mocked_state=mocker.patch('target_kinesis.target.handle_state')
-    mocked_schema=mocker.patch('target_kinesis.target.handle_schema')
+    mocked_state = mocker.patch('target_kinesis.target.handle_state')
+    mocked_schema = mocker.patch('target_kinesis.target.handle_schema')
     persist_lines({}, records)
     mocked_record.assert_not_called()
     mocked_state.assert_not_called()
@@ -186,8 +234,8 @@ def test_persist_lines_with_multiple_records(mocker):
         '{"type": "STATE"}',
     ]
     mocked_record = mocker.patch('target_kinesis.target.handle_record')
-    mocked_state=mocker.patch('target_kinesis.target.handle_state')
-    mocked_schema=mocker.patch('target_kinesis.target.handle_schema')
+    mocked_state = mocker.patch('target_kinesis.target.handle_state')
+    mocked_schema = mocker.patch('target_kinesis.target.handle_schema')
     persist_lines({}, records)
     mocked_record.assert_called_once()
     mocked_state.assert_called_once()

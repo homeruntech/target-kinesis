@@ -18,7 +18,8 @@ setup(
             'pylint==2.1.1',
             'pytest==4.2.0',
             'pytest-cov==2.6.1',
-            'pytest-mock==1.10.1'
+            'pytest-mock==1.10.1',
+            'moto==1.3.7'
         ]
     },
     entry_points="""

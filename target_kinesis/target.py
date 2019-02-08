@@ -63,15 +63,14 @@ def handle_schema(o, schemas, validators, key_properties, line):
     if 'stream' not in o:
         raise Exception(
             "Line is missing required key 'stream': {}".format(line))
-        stream = o['stream']
-        schemas[stream] = o['schema']
-        validators[stream] = Draft4Validator(o['schema'])
-        if 'key_properties' not in o:
-            raise Exception("key_properties field is required")
-        key_properties[stream] = o['key_properties']
-    else:
-        raise Exception("Unknown message type {} in message {}"
-                        .format(o['type'], o))
+    stream = o['stream']
+    schemas[stream] = o['schema']
+    validators[stream] = Draft4Validator(o['schema'])
+    if 'key_properties' not in o:
+        raise Exception("key_properties field is required")
+    key_properties[stream] = o['key_properties']
+
+    return schemas, validators, key_properties
 
 
 def persist_lines(config, lines):
@@ -93,6 +92,9 @@ def persist_lines(config, lines):
             state = handle_state(o)
         elif t == 'SCHEMA':
             handle_schema(o, schemas, validators, key_properties, line)
+        else:
+            raise Exception(
+                "Unknown message type {} in message {}".format(o['type'], o))
 
     return state
 
