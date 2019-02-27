@@ -57,7 +57,7 @@ def test_get_line_type_missing():
 
 def test_handle_record(mocker):
     mocker.patch('target_kinesis.target.validate_record')
-    mocker.patch('target_kinesis.target.deliver_record')
+    mocker.patch('target_kinesis.target.deliver_records')
     result = handle_record({"stream": "a", "record": "b"}, {
                            "a": {"field": "value"}}, "", {}, {})
     assert result is None
@@ -65,7 +65,7 @@ def test_handle_record(mocker):
 
 def test_handle_record_fail_on_missing_stream_name(mocker):
     mocker.patch('target_kinesis.target.validate_record')
-    mocker.patch('target_kinesis.target.deliver_record')
+    mocker.patch('target_kinesis.target.deliver_records')
     try:
         handle_record({"record": "b"}, {}, "", {}, {})
         assert False
@@ -75,7 +75,7 @@ def test_handle_record_fail_on_missing_stream_name(mocker):
 
 def test_handle_record_fail_on_missing_schema(mocker):
     mocker.patch('target_kinesis.target.validate_record')
-    mocker.patch('target_kinesis.target.deliver_record')
+    mocker.patch('target_kinesis.target.deliver_records')
     try:
         handle_record({"stream": "a", "record": "b"}, {}, "", {}, {})
         assert False
@@ -125,10 +125,10 @@ def test_handle_schema_fail_missing_key_properties(mocker):
         assert True
 
 
-# deliver_record
+# deliver_records
 
 
-def test_deliver_record_using_firehose(mocker):
+def test_deliver_records_using_firehose(mocker):
     mocked_setup = mocker.patch('target_kinesis.target.firehose_setup_client')
     mocked_deliver = mocker.patch('target_kinesis.target.firehose_deliver')
     sample_config = {
@@ -136,12 +136,12 @@ def test_deliver_record_using_firehose(mocker):
         "stream_name": "sample-stream",
     }
     sample_records = []
-    deliver_record(sample_config, sample_records)
+    deliver_records(sample_config, sample_records)
     mocked_setup.assert_called_once()
     mocked_deliver.assert_called_once()
 
 
-def test_deliver_record_using_kinesis(mocker):
+def test_deliver_records_using_kinesis(mocker):
     mocked_setup = mocker.patch('target_kinesis.target.kinesis_setup_client')
     mocked_deliver = mocker.patch('target_kinesis.target.kinesis_deliver')
     sample_config = {
@@ -150,7 +150,7 @@ def test_deliver_record_using_kinesis(mocker):
         "partition_key": "id"
     }
     sample_records = []
-    deliver_record(sample_config, sample_records)
+    deliver_records(sample_config, sample_records)
     mocked_setup.assert_called_once()
     mocked_deliver.assert_called_once()
 
@@ -267,7 +267,7 @@ def test_main_with_firehose(mocker):
     mocker.patch('argparse.ArgumentParser.parse_args',
                  return_value=argparse.Namespace(config="sample.config.json"))
     mocker.patch(
-        'builtins.open', mock_open(read_data='{"region_name": "us-east-1", "aws_access_key_id": "FAKE_AWS_ACCESS_KEY_ID", "aws_secret_access_key": "FAKE_AWS_SECRET_ACCESS_KEY", "is_firehose": true }'))
+        'builtins.open', mock_open(read_data='{"region_name": "us-east-1", "aws_access_key_id": "FAKE_AWS_ACCESS_KEY_ID", "aws_secret_access_key": "FAKE_AWS_SECRET_ACCESS_KEY", "is_firehose": true, "record_chunks": 1, "data_chunks": 1 }'))
 
     # Mock AWS methods
     mocked_setup = mocker.patch('target_kinesis.target.firehose_setup_client')
@@ -288,12 +288,12 @@ def test_main_with_kinesis(mocker):
     mocker.patch('argparse.ArgumentParser.parse_args',
                  return_value=argparse.Namespace(config="sample.config.json"))
     mocker.patch(
-        'builtins.open', mock_open(read_data='{"region_name": "us-east-1", "aws_access_key_id": "FAKE_AWS_ACCESS_KEY_ID", "aws_secret_access_key": "FAKE_AWS_SECRET_ACCESS_KEY", "is_firehose": false }'))
+        'builtins.open', mock_open(read_data='{"region_name": "us-east-1", "aws_access_key_id": "FAKE_AWS_ACCESS_KEY_ID", "aws_secret_access_key": "FAKE_AWS_SECRET_ACCESS_KEY", "is_firehose": false, "record_chunks": 1, "data_chunks": 1}'))
 
     # Mock AWS methods
     mocked_setup = mocker.patch('target_kinesis.target.kinesis_setup_client')
     mocked_deliver = mocker.patch('target_kinesis.target.kinesis_deliver')
-    
+
     main()
     mocked_setup.assert_called_once()
     mocked_deliver.assert_called_once()

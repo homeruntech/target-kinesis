@@ -92,5 +92,4 @@ def test_setup_client_kinesis():
         "aws_secret_access_key": 'FAKE_AWS_SECRET_ACCESS_KEY'
     }
     client = kinesis_setup_client(config)
-    print(client)
     assert client.__class__.__name__ == "Kinesis"

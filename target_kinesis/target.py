@@ -76,6 +76,7 @@ def handle_schema(o, schemas, validators, key_properties, line):
 def persist_lines(config, lines):
 
     global RECORDS
+    RECORDS = []
 
     state = None
     schemas = {}
@@ -85,7 +86,6 @@ def persist_lines(config, lines):
     lines_counter = 0
 
     for line in lines:
-
         lines_counter += 1
 
         # default to smallest between 10 records or 1kB
@@ -107,8 +107,7 @@ def persist_lines(config, lines):
                 "Unknown message type {} in message {}".format(o['type'], o))
 
         enough_records = len(RECORDS) > record_chunks
-        enough_data = len(str(RECORDS)) > data_chunks
-        print(len(str(RECORDS)))
+        enough_data = len(str(RECORDS)) > data_chunks + 3 # more than an empty array
         if enough_records or enough_data:
             deliver_records(config, RECORDS)
             RECORDS = []
@@ -131,8 +130,6 @@ def buffer_record(record):
 
 
 def deliver_records(config, records):
-    print("deliver_records")
-    print(len(records))
     is_firehose = config.get("is_firehose", False)
     if is_firehose:
         client = firehose_setup_client(config)
