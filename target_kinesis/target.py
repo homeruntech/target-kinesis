@@ -17,7 +17,7 @@ from .kinesis import *
 from .firehose import *
 
 logger = singer.get_logger()
-
+RECORDS = []
 
 def emit_state(state):
     if state is not None:
@@ -51,7 +51,7 @@ def handle_record(o, schemas, line, config, validators):
         raise Exception(
             "A record for stream {} was encountered before a corresponding schema".format(o['stream']))
     validate_record(o['stream'], o['record'], schemas, validators)
-    deliver_record(config, o['record'])
+    buffer_record(o['record'])
 
 
 def handle_state(o):
@@ -75,12 +75,22 @@ def handle_schema(o, schemas, validators, key_properties, line):
 
 def persist_lines(config, lines):
 
+    global RECORDS
+
     state = None
     schemas = {}
     key_properties = {}
     validators = {}
 
+    lines_counter = 0
+
     for line in lines:
+
+        lines_counter += 1
+
+        # default to smallest between 10 records or 1kB
+        record_chunks = config["record_chunks"] if "record_chunks" in config else 10
+        data_chunks = config["data_chunks"] if "data_chunks" in config else 1000
 
         o = decode_line(line)
         t = get_line_type(o, line)
@@ -96,19 +106,33 @@ def persist_lines(config, lines):
             raise Exception(
                 "Unknown message type {} in message {}".format(o['type'], o))
 
+        enough_records = len(RECORDS) > record_chunks
+        enough_data = len(str(RECORDS)) > data_chunks
+        print(len(str(RECORDS)))
+        if enough_records or enough_data:
+            deliver_records(config, RECORDS)
+            RECORDS = []
+
+    # deliver pending records after last line
+    if len(RECORDS) > 0:
+        deliver_records(config, RECORDS)
+
     return state
 
 
-def validate_record(stream, record, schemas, validator):
+def validate_record(stream, record, schemas, validators):
     pass
-    # FIXME: the schema is fake, uncomment when available
     # schema = schemas[stream]
-
-    # FIXME: record validation fails because the schema is fake
     # validators[stream].validate(record)
 
 
-def deliver_record(config, records):
+def buffer_record(record):
+    RECORDS.append(record)
+
+
+def deliver_records(config, records):
+    print("deliver_records")
+    print(len(records))
     is_firehose = config.get("is_firehose", False)
     if is_firehose:
         client = firehose_setup_client(config)
