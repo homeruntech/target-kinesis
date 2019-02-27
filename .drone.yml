@@ -4,7 +4,7 @@ pipeline:
     commands:
       - apk add --no-cache gcc
       - pip3 install --upgrade pip setuptools wheel
-      - pip3 install pylint
+      - pip3 install pylint==2.2.2
       - pip3 install -e .
       - pylint -E target_kinesis/*.py
     when:
