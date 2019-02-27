@@ -2,7 +2,6 @@ pipeline:
   lint:
     image: python:3.7.1-alpine
     commands:
-      - apk add --no-cache gcc
       - pip3 install --upgrade pip setuptools wheel
       - pip3 install astroid==2.1.0
       - pip3 install pylint==2.2.2
