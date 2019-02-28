@@ -21,10 +21,10 @@ def firehose_deliver(client, stream_name, records):
         raise Exception("Record list is empty")
 
     if isinstance(records, dict):
-        records = [records]
+        raise Exception("Single record given, array is required")
 
     encoded_records = map(lambda x: json.dumps(x), records)
-    payload = "\n".join(encoded_records)
+    payload = ("\n".join(encoded_records) + "\n")
 
     response = client.put_record(
         DeliveryStreamName=stream_name,

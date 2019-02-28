@@ -29,14 +29,28 @@ def create_stream(client, stream_name):
 
 
 @mock_kinesis
-def test_deliver_single_record():
+def test_deliver_single_record_dict():
     client = setup_connection()
     create_stream(client, FAKE_STREAM_NAME)
 
     data = {"example": "content"}
+    try:
+        response = firehose_deliver(client, FAKE_STREAM_NAME, data)
+        assert False
+    except Exception:
+        assert True
+
+
+@mock_kinesis
+def test_deliver_single_record():
+    client = setup_connection()
+    create_stream(client, FAKE_STREAM_NAME)
+
+    data = [{"example": "content"}]
 
     response = firehose_deliver(client, FAKE_STREAM_NAME, data)
     assert response['ResponseMetadata']['HTTPStatusCode'] is 200
+
 
 @mock_kinesis
 def test_deliver_multiple_records():
@@ -44,12 +58,13 @@ def test_deliver_multiple_records():
     create_stream(client, FAKE_STREAM_NAME)
 
     data = [
-        {"example": "content1"}, 
+        {"example": "content1"},
         {"example": "content2"}
     ]
 
     response = firehose_deliver(client, FAKE_STREAM_NAME, data)
     assert response['ResponseMetadata']['HTTPStatusCode'] is 200
+
 
 @mock_kinesis
 def test_deliver_raise_on_empty_dataset():

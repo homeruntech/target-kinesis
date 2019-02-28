@@ -297,3 +297,24 @@ def test_main_with_kinesis(mocker):
     main()
     mocked_setup.assert_called_once()
     mocked_deliver.assert_called_once()
+
+
+def test_main_deliver_last_records(mocker):
+    # Mock standard input
+    input = '{"type": "SCHEMA", "stream": "example", "schema": {}, "key_properties": ["id"]}\n{"type": "RECORD", "stream": "example", "record": {"id": "1"}}'
+    mocker.patch('io.TextIOWrapper',
+                 return_value=StringIO(input))
+
+    # Mock configuration file
+    mocker.patch('argparse.ArgumentParser.parse_args',
+                 return_value=argparse.Namespace(config="sample.config.json"))
+    mocker.patch(
+        'builtins.open', mock_open(read_data='{"region_name": "us-east-1", "aws_access_key_id": "FAKE_AWS_ACCESS_KEY_ID", "aws_secret_access_key": "FAKE_AWS_SECRET_ACCESS_KEY", "is_firehose": true, "record_chunks": 100, "data_chunks": 100000 }'))
+
+    # Mock AWS methods
+    mocked_setup = mocker.patch('target_kinesis.target.firehose_setup_client')
+    mocked_deliver = mocker.patch('target_kinesis.target.firehose_deliver')
+
+    main()
+    mocked_setup.assert_called_once()
+    mocked_deliver.assert_called_once()
