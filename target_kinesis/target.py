@@ -16,6 +16,9 @@ import singer
 from .kinesis import *
 from .firehose import *
 
+DEFAULT_RECORD_CHUNKS = 10
+DEFAULT_DATA_CHUNKS = 1000
+
 logger = singer.get_logger()
 RECORDS = []
 
@@ -89,8 +92,8 @@ def persist_lines(config, lines):
         lines_counter += 1
 
         # default to smallest between 10 records or 1kB
-        record_chunks = config["record_chunks"] if "record_chunks" in config else 10
-        data_chunks = config["data_chunks"] if "data_chunks" in config else 1000
+        record_chunks = config["record_chunks"] if "record_chunks" in config else DEFAULT_RECORD_CHUNKS
+        data_chunks = config["data_chunks"] if "data_chunks" in config else DEFAULT_DATA_CHUNKS
 
         o = decode_line(line)
         t = get_line_type(o, line)
@@ -107,7 +110,13 @@ def persist_lines(config, lines):
                 "Unknown message type {} in message {}".format(o['type'], o))
 
         enough_records = len(RECORDS) > record_chunks
-        enough_data = len(str(RECORDS)) > data_chunks + 3 # more than an empty array
+
+        # approximate message size is calculated using stringified
+        # version of the array. This is the faster way to get the 
+        # approximated size of the data but require a +3 to skip the 
+        # "empty array" special case
+        enough_data = len(str(RECORDS)) > (data_chunks + 3) 
+
         if enough_records or enough_data:
             deliver_records(config, RECORDS)
             RECORDS = []
