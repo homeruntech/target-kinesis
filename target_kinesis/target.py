@@ -16,8 +16,11 @@ import singer
 from .kinesis import *
 from .firehose import *
 
-logger = singer.get_logger()
+DEFAULT_RECORD_CHUNKS = 10
+DEFAULT_DATA_CHUNKS = 1000
 
+logger = singer.get_logger()
+RECORDS = []
 
 def emit_state(state):
     if state is not None:
@@ -51,7 +54,7 @@ def handle_record(o, schemas, line, config, validators):
         raise Exception(
             "A record for stream {} was encountered before a corresponding schema".format(o['stream']))
     validate_record(o['stream'], o['record'], schemas, validators)
-    deliver_record(config, o['record'])
+    buffer_record(o['record'])
 
 
 def handle_state(o):
@@ -75,12 +78,22 @@ def handle_schema(o, schemas, validators, key_properties, line):
 
 def persist_lines(config, lines):
 
+    global RECORDS
+    RECORDS = []
+
     state = None
     schemas = {}
     key_properties = {}
     validators = {}
 
+    lines_counter = 0
+
     for line in lines:
+        lines_counter += 1
+
+        # default to smallest between 10 records or 1kB
+        record_chunks = config["record_chunks"] if "record_chunks" in config else DEFAULT_RECORD_CHUNKS
+        data_chunks = config["data_chunks"] if "data_chunks" in config else DEFAULT_DATA_CHUNKS
 
         o = decode_line(line)
         t = get_line_type(o, line)
@@ -96,19 +109,36 @@ def persist_lines(config, lines):
             raise Exception(
                 "Unknown message type {} in message {}".format(o['type'], o))
 
+        enough_records = len(RECORDS) > record_chunks
+
+        # approximate message size is calculated using stringified
+        # version of the array. This is the faster way to get the 
+        # approximated size of the data but require a +3 to skip the 
+        # "empty array" special case
+        enough_data = len(str(RECORDS)) > (data_chunks + 3) 
+
+        if enough_records or enough_data:
+            deliver_records(config, RECORDS)
+            RECORDS = []
+
+    # deliver pending records after last line
+    if len(RECORDS) > 0:
+        deliver_records(config, RECORDS)
+
     return state
 
 
-def validate_record(stream, record, schemas, validator):
+def validate_record(stream, record, schemas, validators):
     pass
-    # FIXME: the schema is fake, uncomment when available
     # schema = schemas[stream]
-
-    # FIXME: record validation fails because the schema is fake
     # validators[stream].validate(record)
 
 
-def deliver_record(config, records):
+def buffer_record(record):
+    RECORDS.append(record)
+
+
+def deliver_records(config, records):
     is_firehose = config.get("is_firehose", False)
     if is_firehose:
         client = firehose_setup_client(config)
