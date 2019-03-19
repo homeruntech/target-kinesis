@@ -13,10 +13,14 @@ import pkg_resources
 from jsonschema.validators import Draft4Validator
 import singer
 
-from .kinesis import deliver as deliver_to_kinesis
-from .firehose import deliver as deliver_to_firehose
+from .kinesis import *
+from .firehose import *
+
+DEFAULT_RECORD_CHUNKS = 10
+DEFAULT_DATA_CHUNKS = 1000
 
 logger = singer.get_logger()
+RECORDS = []
 
 def emit_state(state):
     if state is not None:
@@ -25,77 +29,146 @@ def emit_state(state):
         sys.stdout.write("{}\n".format(line))
         sys.stdout.flush()
 
-def flatten(d, parent_key='', sep='__'):
-    items = []
-    for k, v in d.items():
-        new_key = parent_key + sep + k if parent_key else k
-        if isinstance(v, collections.MutableMapping):
-            items.extend(flatten(v, new_key, sep=sep).items())
-        else:
-            items.append((new_key, str(v) if type(v) is list else v))
-    return dict(items)
+
+def decode_line(line):
+    try:
+        o = json.loads(line)
+    except json.decoder.JSONDecodeError:
+        logger.error("Unable to parse:\n{}".format(line))
+        raise
+    return o
+
+
+def get_line_type(decode_line, line):
+    if 'type' not in decode_line:
+        raise Exception(
+            "Line is missing required key 'type': {}".format(line))
+    return decode_line['type']
+
+
+def handle_record(o, schemas, line, config, validators):
+    if 'stream' not in o:
+        raise Exception(
+            "Line is missing required key 'stream': {}".format(line))
+    if o['stream'] not in schemas:
+        raise Exception(
+            "A record for stream {} was encountered before a corresponding schema".format(o['stream']))
+    validate_record(o['stream'], o['record'], schemas, validators)
+    buffer_record(o['record'])
+
+
+def handle_state(o):
+    logger.debug('Setting state to {}'.format(o['value']))
+    return o['value']
+
+
+def handle_schema(o, schemas, validators, key_properties, line):
+    if 'stream' not in o:
+        raise Exception(
+            "Line is missing required key 'stream': {}".format(line))
+    stream = o['stream']
+    schemas[stream] = o['schema']
+    validators[stream] = Draft4Validator(o['schema'])
+    if 'key_properties' not in o:
+        raise Exception("key_properties field is required")
+    key_properties[stream] = o['key_properties']
+
+    return schemas, validators, key_properties
+
 
 def persist_lines(config, lines):
+
+    global RECORDS
+    RECORDS = []
+
     state = None
     schemas = {}
     key_properties = {}
-    headers = {}
     validators = {}
 
-    now = datetime.now().strftime('%Y%m%dT%H%M%S')
+    lines_counter = 0
 
-    # Loop over lines from stdin
     for line in lines:
-        try:
-            o = json.loads(line)
-        except json.decoder.JSONDecodeError:
-            logger.error("Unable to parse:\n{}".format(line))
-            raise
+        lines_counter += 1
 
-        if 'type' not in o:
-            raise Exception("Line is missing required key 'type': {}".format(line))
-        t = o['type']
+        # default to smallest between 10 records or 1kB
+        record_chunks = config["record_chunks"] if "record_chunks" in config else DEFAULT_RECORD_CHUNKS
+        data_chunks = config["data_chunks"] if "data_chunks" in config else DEFAULT_DATA_CHUNKS
+
+        o = decode_line(line)
+        t = get_line_type(o, line)
 
         if t == 'RECORD':
-            if 'stream' not in o:
-                raise Exception("Line is missing required key 'stream': {}".format(line))
-            if o['stream'] not in schemas:
-                raise Exception("A record for stream {} was encountered before a corresponding schema".format(o['stream']))
-
-            # FIXME: the schema is fake, uncomment when available
-            # schema = schemas[o['stream']]
-
-            # FIXME: record validation fails because the schema is fake
-            # validators[o['stream']].validate(o['record'])
-
-            # If the record needs to be flattened, uncomment this line
-            # flattened_record = flatten(o['record'])
-
-            deliver_record(config, o['record'])
-
+            handle_record(o, schemas, line, config, validators)
             state = None
         elif t == 'STATE':
-            logger.debug('Setting state to {}'.format(o['value']))
-            state = o['value']
+            state = handle_state(o)
         elif t == 'SCHEMA':
-            if 'stream' not in o:
-                raise Exception("Line is missing required key 'stream': {}".format(line))
-            stream = o['stream']
-            schemas[stream] = o['schema']
-            validators[stream] = Draft4Validator(o['schema'])
-            if 'key_properties' not in o:
-                raise Exception("key_properties field is required")
-            key_properties[stream] = o['key_properties']
+            handle_schema(o, schemas, validators, key_properties, line)
         else:
-            raise Exception("Unknown message type {} in message {}"
-                            .format(o['type'], o))
+            raise Exception(
+                "Unknown message type {} in message {}".format(o['type'], o))
+
+        enough_records = len(RECORDS) > record_chunks
+
+        # approximate message size is calculated using stringified
+        # version of the array. This is the faster way to get the 
+        # approximated size of the data but require a +3 to skip the 
+        # "empty array" special case
+        enough_data = len(str(RECORDS)) > (data_chunks + 3) 
+
+        if enough_records or enough_data:
+            deliver_records(config, RECORDS)
+            RECORDS = []
+
+    # deliver pending records after last line
+    if len(RECORDS) > 0:
+        deliver_records(config, RECORDS)
 
     return state
 
 
-def deliver_record(config, record):
+def validate_record(stream, record, schemas, validators):
+    pass
+    # schema = schemas[stream]
+    # validators[stream].validate(record)
+
+
+def buffer_record(record):
+    RECORDS.append(record)
+
+
+def deliver_records(config, records):
     is_firehose = config.get("is_firehose", False)
     if is_firehose:
-        deliver_to_firehose(config, record)
+        client = firehose_setup_client(config)
+        stream_name = config.get("stream_name", "missing-stream-name")
+        firehose_deliver(client, stream_name, records)
     else:
-        deliver_to_kinesis(config, record)
+        client = kinesis_setup_client(config)
+        stream_name = config.get("stream_name", "missing-stream-name")
+        partition_key = config.get("partition_key", "id")
+        kinesis_deliver(client, stream_name, partition_key, records)
+
+
+def load_config(config_filename):
+    if config_filename:
+        with open(config_filename) as input:
+            config = json.load(input)
+    else:
+        config = {}
+    return config
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-c', '--config', help='Config file')
+    args = parser.parse_args()
+
+    config = load_config(args.config)
+
+    input = io.TextIOWrapper(sys.stdin.buffer, encoding='utf-8')
+    state = persist_lines(config, input)
+    emit_state(state)
+
+    logger.debug("Exiting normally")

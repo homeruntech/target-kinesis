@@ -35,7 +35,9 @@ Here is an example of required configuration:
   "aws_access_key_id": "YOUR_AWS_ACCESS_KEY_ID",
   "aws_secret_access_key": "YOUR_AWS_SECRET_ACCESS_KEY",
   "region": "YOUR_AWS_REGION",
-  "is_firehose": true
+  "is_firehose": true,
+  "record_chunks": 10,
+  "data_chunks": 1000
 }
 ```
 
@@ -50,3 +52,9 @@ To run `target-kinesis` with the configuration file, use this command:
 [Singer Tap]: https://singer.io
 [Mac]: http://docs.python-guide.org/en/latest/starting/install3/osx/
 [Ubuntu]: https://www.digitalocean.com/community/tutorials/how-to-install-python-3-and-set-up-a-local-programming-environment-on-ubuntu-16-04
+
+### Run test suite
+
+```
+pytest -p no:warnings --cov=target_kinesis tests/test_target.py --cov-report=html
+```
