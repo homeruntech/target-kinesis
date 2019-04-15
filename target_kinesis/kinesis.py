@@ -1,6 +1,9 @@
 import boto3
 import json
 import singer
+from botocore.exceptions import ClientError
+
+logger = singer.get_logger()
 
 
 def kinesis_setup_client(config):
@@ -27,9 +30,12 @@ def kinesis_deliver(client, stream_name, partition_key, records):
     encoded_records = map(lambda x: json.dumps(x), records)
     payload = ("\n".join(encoded_records) + "\n")
 
-    response = client.put_record(
-        StreamName=stream_name,
-        Data=payload.encode(),
-        PartitionKey=records[0][partition_key]
-    )
-    return response
+    try:
+        response = client.put_record(
+            StreamName=stream_name,
+            Data=payload.encode(),
+            PartitionKey=records[0][partition_key]
+        )
+        return response
+    except ClientError as c:
+        logger.debug("Error: {}".format(c.message))
