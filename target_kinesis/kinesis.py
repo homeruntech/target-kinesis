@@ -38,4 +38,4 @@ def kinesis_deliver(client, stream_name, partition_key, records):
         )
         return response
     except ClientError as c:
-        logger.debug("Error: {}".format(c.message))
+        logger.error(c.response['Error']['Message'])
