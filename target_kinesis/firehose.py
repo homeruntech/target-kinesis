@@ -1,6 +1,9 @@
 import boto3
 import json
 import singer
+from botocore.exceptions import ClientError
+
+logger = singer.get_logger()
 
 
 def firehose_setup_client(config):
@@ -26,8 +29,11 @@ def firehose_deliver(client, stream_name, records):
     encoded_records = map(lambda x: json.dumps(x), records)
     payload = ("\n".join(encoded_records) + "\n")
 
-    response = client.put_record(
-        DeliveryStreamName=stream_name,
-        Record={'Data': payload}
-    )
-    return response
+    try:
+        response = client.put_record(
+            DeliveryStreamName=stream_name,
+            Record={'Data': payload}
+        )
+        return response
+    except ClientError as c:
+        logger.error(c.response['Error']['Message'])
