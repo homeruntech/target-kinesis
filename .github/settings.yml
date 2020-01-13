@@ -14,8 +14,7 @@ branches:
   - name: develop
     protection:
       required_pull_request_reviews:
-        # Still in alpha
-        # required_approving_review_count: 1
+        required_approving_review_count: 1
         dismiss_stale_reviews: false
         require_code_owner_reviews: true
         dismissal_restrictions:
@@ -35,8 +34,7 @@ branches:
   - name: master
     protection:
       required_pull_request_reviews:
-        # Still in alpha
-        # required_approving_review_count: 1
+        required_approving_review_count: 1
         dismiss_stale_reviews: false
         require_code_owner_reviews: true
         dismissal_restrictions:
@@ -51,6 +49,7 @@ branches:
       restrictions:
         users:
           - zuc
+          - zenkay
         teams: []
 
 labels:
